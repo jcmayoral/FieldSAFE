@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!-- To playback a rosbag, use: "roslaunch demo demo.launch file:=/path/to/rosbag.bag" -->
+<launch>
+
+  <arg name="bag_start" default="0.0" />
+  <arg name="rviz" default="true" />
+
+  <param name="use_sim_time" value="true"/>
+  
+	<!-- Multisense S21 stereo camera: Generate disparity images and point clouds -->
+	<arg name="namespace"  default="Multisense" />
+	<node pkg="nodelet" type="nodelet" name="nodelet_manager"  args="manager"/>
+	<node pkg="nodelet" type="nodelet" name="Plus" args="load depth_image_proc/point_cloud_xyzrgb nodelet_manager rgb/camera_info:=/Multisense/left/image_rect_color/camera_info rgb/image_rect_color:=/Multisense/left/image_rect_color depth_registered/image_rect:=/Multisense/depth">
+		<remap from="/depth_registered/points" to="$(arg namespace)/image_points2_color"/>
+	</node>
+
+	<!-- Static transforms -->
+	<include file="$(find fieldsafe_custom)/launch/static_tf.xml"/>
+
+	<!-- Pose estimation (localization) -->
+  <include file="$(find fieldsafe_custom)/launch/pose_estimation.xml"/>
+
+	<!-- Overlay of static maps in rviz -->
+	<group if="$(arg rviz)">
+		<include file="$(find fieldsafe_custom)/launch/map_visualization.xml"/>
+		<node name="rviz" pkg="rviz" type="rviz" args="-d $(find fieldsafe_custom)/demo.rviz" respawn="true" />
+	</group>
+
+  <!-- custom nodes -->
+  <include file="$(find fieldsafe_custom)/launch/sensors/VLP32.launch"/>
+  <include file="$(find fieldsafe_custom)/launch/processing/lidar_processing.launch"/>
+
+
+</launch>
