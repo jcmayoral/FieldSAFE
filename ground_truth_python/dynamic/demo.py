@@ -23,7 +23,6 @@ tables = list()
 for i in range(5):
     tables.append(table.loc[table["track_id"] == i])
 
-
 custom_table =  pandas.read_table('../../ros_recording/dynamic_1_test.txt', delimiter="," )
 
 
@@ -35,13 +34,14 @@ tableTractor = pandas.read_table('tractor_gps_coordinates.csv', delimiter="," )
 #transform = dlmread('../static/utm2PixelsTransformMatrix.csv', ',', 0, 0);
 transform = np.loadtxt('../static/utm2PixelsTransformMatrix.csv', delimiter=',', unpack=True);
 transform= np.transpose(transform.reshape(3,3))
-print(transform)
-plt.figure()
+
+
+
+#plt.figure()
 
 #% Load static map for overlaying positions
 #imgMap = cv2.imread('../static/static_ground_truth.png');
 imgMap=mpimg.imread('../static/static_ground_truth.png')
-plt.imshow(imgMap)
 #% Visualize
 #figure(1)
 #TODO imshow(imgMap)
@@ -57,14 +57,26 @@ plt.imshow(imgMap)
 
 
 #output = set([]) # initialize an empty set
+#plt.draw()
+#plt.imshow(imgMap)
+#ax.imshow(imgMap)
 
 #% Run through all annotated frames
 #for frame=min(table.frame):5:max(table.frame)
-for frame in range(min(table.frame),max(table.frame)-1,5):
+
+fig, ax = plt.subplots()
+ax.cla()
+ax.imshow(imgMap)
+
+
+for frame in range(min(tables[0].frame),max(tables[0].frame)-1,5):
+
     #delete(allchild(ax1))
     #hold on;
     #Get corresponding frame information
     #mask = table.frame == frame;
+
+
     if frame == 0:
         orig_x = tableTractor["lat"][frame]
         orig_y = tableTractor["lon"][frame]
@@ -92,7 +104,7 @@ for frame in range(min(table.frame),max(table.frame)-1,5):
             A_inv = np.linalg.inv(transform)
             #person_xy = A_inv.dot([[x],[y],[1]])
             #plt.plot(person_xy[0],person_xy[1],'mx');
-            plt.plot(x,y,'kx');
+            ax.plot(x,y,'kx');
 
     #% Get corresponding tractor location
     clockIdx = np.argmin(abs(tableTractor.clock - timestamp))
@@ -134,7 +146,7 @@ for frame in range(min(table.frame),max(table.frame)-1,5):
     """
     [utm_x,utm_y,utmzone] = deg2utm(tractor_lat, tractor_lon);
     tractor_xy = transform.dot([[utm_x],[utm_y],[1]])
-    plt.plot(tractor_xy[1], tractor_xy[0],'gx');
+    ax.plot(tractor_xy[1], tractor_xy[0],'gx');
 
 
     #pixel_tractor_xy =  transform.dot(utm_array)
@@ -166,15 +178,16 @@ for frame in range(min(table.frame),max(table.frame)-1,5):
     #FROM HERE IT IS MY FUCKING PROBLEM0
     """
     custom_clockIdx = np.argmin(abs(custom_table["timestamp"][:] - timestamp))
+    if abs(custom_table["timestamp"][custom_clockIdx] - timestamp) > 1.0:
+        print("this should be a false positive")
+        continue
 
     selected_timestamp = custom_table["timestamp"][custom_clockIdx]
     while True:
-        print("c ", custom_clockIdx)
         #coordinates in utm.. supposed to be at least
         x = custom_table["x"][custom_clockIdx]
         y = custom_table["y"][custom_clockIdx]
         custom_clockIdx +=1
-
 
         #tl, tl2 =  to_meters.to_meters(tractor_lat, tractor_lon)
         #x += tl
@@ -188,20 +201,18 @@ for frame in range(min(table.frame),max(table.frame)-1,5):
         #[c_utm_x,c_utm_y,c_utmzone] = deg2utm(o_lat, o_lon);
         #object_xy = transform.dot([[c_utm_x],[c_utm_y],[1]])
         object_xy = transform.dot([[x],[y],[1]])
-        plt.plot(object_xy[1], object_xy[0],'bx');
+        ax.plot(object_xy[1], object_xy[0],'bx');
 
         if (custom_table["timestamp"][custom_clockIdx] != selected_timestamp):
             break
     #plt.plot(x,y,'bx');
-
-
-
-
-
-    plt.pause(0.05)
+    plt.pause(0.1)
+    #plt.clf()
+    #plt.cla()
+plt.close()
 
 #    end
-plt.show()
-
+#plt.show()
+#plt.close()
 #    drawnow;
 #end
