@@ -39,11 +39,10 @@ for frame in range(min(tables[0].frame),max(tables[0].frame)-1,5):
     #dynamic obstacles are consider to be correct
     #all mapped around it.
     timestamp = tables[0]["timestamp"][frame]
+    person_poses = dict()
 
     for i in range(5):
         custom_clockIdx = np.argmin(abs(tables[i]["timestamp"][:] - timestamp))
-
-        #id = tables[i]["track_id"][frame];
         x = tables[i]["x"][custom_clockIdx]
         y = tables[i]["y"][custom_clockIdx]
         label = tables[i]["label"][custom_clockIdx]
@@ -53,8 +52,9 @@ for frame in range(min(tables[0].frame),max(tables[0].frame)-1,5):
         timestamp = table["timestamp"][custom_clockIdx];
         #%  Show the dynamic obstacles (x'es in figure)
         plotInds = not(occluded) and not(lost) and label == 'human';
-        if plotInds:
+        if True:#plotInds:
             ax.plot(x,y,'kx');
+            person_poses[i] = [x,y]
 
     #% Get corresponding tractor location
     clockIdx = np.argmin(abs(tableTractor.clock - timestamp))
@@ -70,10 +70,12 @@ for frame in range(min(tables[0].frame),max(tables[0].frame)-1,5):
     custom_clockIdx = np.argmin(abs(custom_table["timestamp"][:] - timestamp))
     if abs(custom_table["timestamp"][custom_clockIdx] - timestamp) > 1.0:
         print("this should be a false detection... too delayed")
-        continue
+        #continue
 
     selected_timestamp = custom_table["timestamp"][custom_clockIdx]
 
+
+    distance = np.zeros(5)*-100
     #This because a single message can detect several
     while True:
         #coordinates in utm.. supposed to be at least
@@ -82,6 +84,14 @@ for frame in range(min(tables[0].frame),max(tables[0].frame)-1,5):
         custom_clockIdx +=1
         object_xy = transform.dot([[x],[y],[1]])
         ax.plot(object_xy[1], object_xy[0],'bx');
+
+        for key, values in person_poses.items():
+            dx = np.power(person_poses[key][0] -object_xy[0],2)
+            dy = np.power(person_poses[key][1] -object_xy[1],2)
+            distance[key] = np.sqrt(dx+dy)
+
+        closest_person_id = np.argmin(distance)
+        print ("Closest person " , closest_person_id , "with distance " , distance[closest_person_id])
 
         if (custom_table["timestamp"][custom_clockIdx] != selected_timestamp):
             break
