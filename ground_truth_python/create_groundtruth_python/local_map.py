@@ -18,13 +18,13 @@ class Lidar2Image:
     def __init__(self, save_image=False, ros = False, filegroup="images"):
         self.save_image = save_image
         #TODO Add in metadata file
-        self.x_resolution = 50
-        self.y_resolution = 50
+        self.pixels_per_meter = 100
         self.filegroup = filegroup
 
         self.bridge = CvBridge()
         self.counter = 1
-        self.pixels_number = 1024
+        #10 meters
+        self.pixels_number = int(10*self.pixels_per_meter)
 
         #assume symmetric
         self.range= [-3,3]
@@ -95,8 +95,8 @@ class Lidar2Image:
                 x = point[0]
                 y = point[1]
                 z = point[2]
-                cell_x = int(x*self.x_resolution)
-                cell_y = int(y*self.y_resolution)
+                cell_x = int(x*self.pixels_per_meter)
+                cell_y = int(y*self.pixels_per_meter)
                 feature = z#*point[0]*point[1]
             except:
                 continue

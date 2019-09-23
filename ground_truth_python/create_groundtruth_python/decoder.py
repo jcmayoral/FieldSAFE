@@ -8,6 +8,7 @@ import numpy as np
 import pptk
 import time
 import copy
+import pyprind
 
 help_text = 'This is a script that converts RGB images to PointCloud2 messages'
 
@@ -20,10 +21,9 @@ class ImageToPc():
         self.folder = folder
         self.extension = extension
         self.task_done = False
-        self.x_resolution = 50
-        self.y_resolution = 50
-        self.range= [3,3]
-        self.cells_to_2d = 0.1
+        #100 cm per meter
+        self.pixels_per_meter = 100
+        self.range= [-3,3]
         self.points = list()
         self.viewer = pptk.viewer(self.points)
 
@@ -50,32 +50,38 @@ class ImageToPc():
         height, width, channels = img.shape
         x_offset = height/2
         y_offset = width/2
+        print("computing %d points ", height * width)
+        pbar = pyprind.ProgBar(height*width)
 
         for i in range(height):
             for j in range(width):
                 max_height = ((float(img[i,j,1])-127)/255) * (self.range[1]-self.range[0])
                 min_height = ((float(img[i,j,2])-127)/255) * (self.range[1]-self.range[0])
                 number_sample = img[i,j,0]
-                x = self.cells_to_2d * ((i - x_offset)/self.x_resolution)
-                y = self.cells_to_2d * ((j - y_offset)/self.y_resolution)
+                x = ((i - x_offset)/self.pixels_per_meter)
+                y = ((j - y_offset)/self.pixels_per_meter)
 
                 if (number_sample == 0):
+                    pbar.update()
                     continue
 
                 points_offset = np.fabs(max_height-min_height)/number_sample
 
-                #if points_offset == 0:
-                #    self.points.append([x,y,min_height])
-                #    continue
+                if points_offset == 0:
+                    self.points.append([x,y,min_height])
+                    pbar.update()
+                    continue
 
-                z = min_height
-                for i in range(1+number_sample):
-                    z = copy.copy(points_offset+ z)
+                #z = min_height
+                #for i in range(1+number_sample):
+                    #z = copy.copy(points_offset+ z)
+                    #self.points.append([x,y,z])
+                for z in np.arange(min_height, max_height, points_offset):
                     self.points.append([x,y,z])
 
-                #for z in np.arange(min_height, max_height, points_offset):
-                    #self.points.append([x,y,z])
+                pbar.update()
 
+                #
         self.viewer.close()
         self.viewer = pptk.viewer(self.points)
 
