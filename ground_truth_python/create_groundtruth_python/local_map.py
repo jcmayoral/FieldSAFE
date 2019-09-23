@@ -18,13 +18,13 @@ class Lidar2Image:
     def __init__(self, save_image=False, ros = False, filegroup="images"):
         self.save_image = save_image
         #TODO Add in metadata file
-        self.x_resolution = 10
-        self.y_resolution = 10
+        self.x_resolution = 50
+        self.y_resolution = 50
         self.filegroup = filegroup
 
         self.bridge = CvBridge()
         self.counter = 1
-        self.pixels_number = 512
+        self.pixels_number = 1024
 
         #assume symmetric
         self.range= [-3,3]
@@ -77,17 +77,14 @@ class Lidar2Image:
 
     def topic_cb(self,msg):
         #self.transformed_image.data = [False] * self.size * 3
-
         gen = pc2.read_points(msg, skip_nans=True, field_names=("x", "y", "z"))
         self.process_pc(gen)
-
-
 
     def process_pc(self, pc):
         #cvMat = cv2.CreateImage(self.pixels_number, self.pixels_number, cv.CV_32FC3)
         #cvMat = cv2.Mat(2,2, CV_8UC3, Scalar(0,0,255));
 
-        rgb_color=(0, 0, 0)
+        rgb_color=(0, 0, 255)
         cvMat = np.zeros((self.pixels_number, self.pixels_number, 3), np.uint8)
         color = tuple(reversed(rgb_color))
         cvMat[:] = color
@@ -131,6 +128,8 @@ class Lidar2Image:
             #number of values
             cvMat[cell_x,cell_y,0] += 1
             color_val = self.scalar_to_color(z)
+            if color_val < 0 or color_val > 255:
+                print (color_val)
             #higher value
             cvMat[cell_x,cell_y,1] = max(cvMat[cell_x,cell_y,1],color_val)
             cvMat[cell_x,cell_y,2] = min(cvMat[cell_x,cell_y,2],color_val)
@@ -139,7 +138,6 @@ class Lidar2Image:
         #max_overlapping = np.max(cvMat[:,:,0])
 
         if self.save_image:
-            print "to save"
             self.save_image_to_file(cvMat)
 
 if __name__ == '__main__':
