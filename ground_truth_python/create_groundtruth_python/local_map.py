@@ -17,8 +17,9 @@ help_text = 'This is a script that converts PointCloud2 message to RGB images'
 class Lidar2Image:
     def __init__(self, save_image=False, ros = False, filegroup="images"):
         self.save_image = save_image
-        self.x_resolution = 25
-        self.y_resolution = 25
+        #TODO Add in metadata file
+        self.x_resolution = 5
+        self.y_resolution = 5
         self.filegroup = filegroup
 
         self.bridge = CvBridge()
@@ -29,7 +30,6 @@ class Lidar2Image:
         self.range= [-3,3]
 
         self.max_value = 255
-        self.step = 25
 
         self.size =  int(self.pixels_number*self.pixels_number)
         self.create_folder()
@@ -129,7 +129,7 @@ class Lidar2Image:
             #update = min(fabs(feature), self.max_value)
 
             #number of values
-            cvMat[cell_x,cell_y,0] -= 1
+            cvMat[cell_x,cell_y,0] += 1
             color_val = self.scalar_to_color(z)
             #higher value
             cvMat[cell_x,cell_y,1] = max(cvMat[cell_x,cell_y,1],color_val)
