@@ -1,13 +1,19 @@
 #!/usr/bin/python
 import rospy
+import argparse
 import tf2_ros
 import tf2_geometry_msgs
 from geometry_msgs.msg import PoseArray, PoseStamped
 from std_msgs.msg import Header
+import argparse
+
+
+help_text = 'This is a script that generates a txt file with detection poses.'
+
 
 class DetectionRecorder:
-    def __init__(self):
-        self.file = open ("test.txt", "w+")
+    def __init__(self, filename="test"):
+        self.file = open (filename+".txt", "w+")
         header = ",".join(["x", "y", "timestamp", "class", "frame_id"])
         self.file.write(header + "\n")
         self.tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) #tf buffer length
@@ -26,7 +32,7 @@ class DetectionRecorder:
             transform = self.tf_buffer.lookup_transform(target_frame,
                                            frame_id, #source frame
                                            rospy.Time(0), #get the tf at first available time
-                                           rospy.Duration(0.1)) #wait for 1 second
+                                           rospy.Duration(0.1)) #wait for .1 second
 
             pose_stamped = PoseStamped()
             pose_stamped.header = msg.header
@@ -43,5 +49,9 @@ class DetectionRecorder:
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description = help_text)
+    parser.add_argument("--output", "-o", help="set output filename")
+    args = parser.parse_args()
     rospy.init_node("detection_recording")
-    recorder = DetectionRecorder()
+
+    recorder = DetectionRecorder(args.output)

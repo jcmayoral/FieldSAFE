@@ -1,0 +1,1 @@
+x,y,timestamp,class,frame_id
