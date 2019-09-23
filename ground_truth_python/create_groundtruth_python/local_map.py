@@ -15,20 +15,21 @@ import os
 help_text = 'This is a script that converts PointCloud2 message to RGB images'
 
 class Lidar2Image:
-    def __init__(self, save_image=False, ros = False, filegroup="images"):
+    def __init__(self, save_image=False, ros = False, filegroup="images", meters=10, pix_per_meter=10, z_range=5):
         self.save_image = save_image
         #TODO Add in metadata file
-        self.pixels_per_meter = 100
+        self.meters = float(meters)
+        self.pixels_per_meter = int(pix_per_meter)
         self.filegroup = filegroup
 
         self.bridge = CvBridge()
         self.counter = 1
         #10 meters
-        self.pixels_number = int(10*self.pixels_per_meter)
+        self.pixels_number = int(self.meters*self.pixels_per_meter)
 
         #assume symmetric
-        self.range= [-3,3]
-
+        self.range= [-float(z_range),float(z_range)]
+        #from RGB
         self.max_value = 255
 
         self.size =  int(self.pixels_number*self.pixels_number)
@@ -39,6 +40,18 @@ class Lidar2Image:
             rospy.Subscriber("/velodyne_points", PointCloud2, self.topic_cb, queue_size=100)
             rospy.loginfo("Node initialized")
             rospy.spin()
+
+    def save_params(self):
+        params = dict()
+        params["meters"] = self.meters
+        params["range_min"] = self.range[0]
+        params["range_max"] = self.range[1]
+        params["pix_per_meter"] = self.pixels_per_meter
+
+        f = open("params.txt","w")
+        f.seek(0)
+        f.write( str(params) )
+        f.close()
 
     def create_folder(self):
         #path = os.getcwd()
@@ -145,10 +158,14 @@ if __name__ == '__main__':
     parser.add_argument("--bag", "-b", help="set input bagname")
     parser.add_argument("--group", "-g", default="image")
     parser.add_argument("--topic", "-t", default="/velodyne_points")
+    parser.add_argument("--meters", "-m", default=10)
+    parser.add_argument("--pix_meters", "-p", default=15)
+    parser.add_argument("--z_range", "-z", default=5)
 
     args = parser.parse_args()
     bag = rosbag.Bag(args.bag, mode="r")
-    lidar2image = Lidar2Image(save_image=True, filegroup=args.group)
+    lidar2image = Lidar2Image(save_image=True, filegroup=args.group, meters = args.meters, pix_per_meter=args.pix_meters, z_range=args.z_range)
+    lidar2image.save_params()
 
     for topic, msg, t in bag.read_messages(topics=args.topic):
         lidar2image.topic_cb(msg)
