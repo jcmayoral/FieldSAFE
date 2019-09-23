@@ -6,6 +6,7 @@ from sensor_msgs.msg import PointCloud2
 import rospy
 import numpy as np
 import pptk
+import time
 
 help_text = 'This is a script that converts RGB images to PointCloud2 messages'
 
@@ -20,7 +21,10 @@ class ImageToPc():
         self.task_done = False
         self.x_resolution = 0.5
         self.y_resolution = 0.5
-        self.range= [-3,3]
+        self.range= [-2,2]
+        self.cells_to_2d = 0.1
+        self.points = list()
+        self.viewer = pptk.viewer(self.points)
 
     def get_next_image(self):
         try:
@@ -46,15 +50,13 @@ class ImageToPc():
         x_offset = height/2
         y_offset = width/2
 
-        points = list()
-
         for i in range(height):
             for j in range(width):
-                max_height = ((float(img[i,j,1])-127)/255) * (self.range[1]-self.range[0])
-                min_height = ((float(img[i,j,2])-127)/255) * (self.range[1]-self.range[0])
+                max_height = ((float(img[i,j,1])-127)/255) * 6#(self.range[1]-self.range[0])
+                min_height = ((float(img[i,j,2])-127)/255) * 6#(self.range[1]-self.range[0])
                 number_sample = img[i,j,0]
-                x = (i - x_offset)/self.x_resolution
-                y = (j - y_offset)/self.y_resolution
+                x = self.cells_to_2d *((i - x_offset)/self.x_resolution)
+                y = self.cells_to_2d *(j - y_offset)/self.y_resolution
                 if number_sample == 0:
                     continue
 
@@ -63,17 +65,23 @@ class ImageToPc():
                 points_offset = np.fabs(max_height-min_height)/number_sample
 
                 if points_offset == 0:
-                    points.append([x,y,min_height])
+                    self.points.append([x,y,min_height])
                     continue
 
 
                 for z in np.arange(min_height, max_height, points_offset):
-                    print (z, min_height, max_height)
-                    points.append([x,y,z])
+                    self.points.append([x,y,z])
 
-        viewer = pptk.viewer(points)
-        raw_input("Press Enter to continue...")
-        viewer.close()
+        self.viewer.close()
+        self.viewer = pptk.viewer(self.points)
+
+        if self.index > -1:
+            raw_input("Press Enter to continue...")
+        else:
+            time.sleep(1)
+
+        if self.task_done:
+            self.viewer.close()
 
 
 if __name__ == '__main__':

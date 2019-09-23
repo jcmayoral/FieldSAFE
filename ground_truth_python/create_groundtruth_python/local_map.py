@@ -18,8 +18,8 @@ class Lidar2Image:
     def __init__(self, save_image=False, ros = False, filegroup="images"):
         self.save_image = save_image
         #TODO Add in metadata file
-        self.x_resolution = 5
-        self.y_resolution = 5
+        self.x_resolution = 10
+        self.y_resolution = 10
         self.filegroup = filegroup
 
         self.bridge = CvBridge()
