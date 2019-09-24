@@ -97,7 +97,7 @@ class Lidar2Image:
         #cvMat = cv2.CreateImage(self.pixels_number, self.pixels_number, cv.CV_32FC3)
         #cvMat = cv2.Mat(2,2, CV_8UC3, Scalar(0,0,255));
 
-        rgb_color=(0, 0, 255)
+        rgb_color=(255, 0, 0)
         cvMat = np.zeros((self.pixels_number, self.pixels_number, 3), np.uint8)
         color = tuple(reversed(rgb_color))
         cvMat[:] = color
@@ -110,12 +110,12 @@ class Lidar2Image:
                 z = point[2]
                 cell_x = int(x*self.pixels_per_meter)
                 cell_y = int(y*self.pixels_per_meter)
-                feature = z#*point[0]*point[1]
             except:
                 continue
 
             if z > self.range[1] or z < self.range[0]:
                 continue
+
 
             cell_x = int(self.pixels_number/2) + cell_x
 
@@ -135,17 +135,29 @@ class Lidar2Image:
 
             if cell_x < 0 or cell_y < 0:
                 continue
-            probability = 1 /fabs(feature)
-            #update = min(fabs(feature), self.max_value)
 
+
+            #make all z positive
+            feature = (z -  self.range[0])
+            featured_sigmoid = int(255*(1. / (1. + np.exp(-feature))))
+
+            feature_logit = np.log(featured_sigmoid/255) - np.log(1-featured_sigmoid/255)
+            #update = min(fabs(feature), self.max_value)
+            #print(z - (feature_logit + self.range[0]))
             #number of values
-            cvMat[cell_x,cell_y,0] += 1
+            cvMat[cell_x,cell_y,0] +=  1
             color_val = self.scalar_to_color(z)
+
             if color_val < 0 or color_val > 255:
-                print (color_val)
-            #higher value
+                print (color_val, "WHAT")
+
+
             cvMat[cell_x,cell_y,1] = max(cvMat[cell_x,cell_y,1],color_val)
             cvMat[cell_x,cell_y,2] = min(cvMat[cell_x,cell_y,2],color_val)
+
+            #TODO NOT WORKING BUT GREAT IDEA
+            #cvMat[cell_x,cell_y,1] =  max(cvMat[cell_x,cell_y,1], featured_sigmoid)
+            #cvMat[cell_x,cell_y,2] =  min(cvMat[cell_x,cell_y,2], featured_sigmoid)
 
         #TODO Normalize R channel
         #max_overlapping = np.max(cvMat[:,:,0])

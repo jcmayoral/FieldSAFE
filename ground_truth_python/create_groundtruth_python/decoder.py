@@ -72,26 +72,46 @@ class ImageToPc():
 
         for i in range(height):
             for j in range(width):
+                r,g,b = img[i,j,:]
+
+                #NOT WORKING TODO
+                #max_height = np.log(float(g)/255) - np.log(1-float(g)/255)
+                #min_height = np.log(float(b)/255) - np.log(1-float(b)/255)
+
                 max_height = ((float(img[i,j,1])-127)/255) * (self.range[1]-self.range[0])
-                min_height = ((float(img[i,j,2])-127)/255) * (self.range[1]-self.range[0])
-                number_sample = img[i,j,0]
+-               min_height = ((float(img[i,j,2])-127)/255) * (self.range[1]-self.range[0])
+
+
                 x = ((i - x_offset)/self.pixels_per_meter)
                 y = ((j - y_offset)/self.pixels_per_meter)
 
-                if (number_sample < 2):
+                if g == b:
                     pbar.update()
+                    self.points.append([x,y,min_height+self.range[0]])
                     continue
 
+                if (r < 2):
+                    pbar.update()
+                    continue
 
                 #if points_offset == 0:
                     #self.points.append([x,y,min_height])
                     #pbar.update()
                     #continue
 
+                #if np.fabs(max_height - min_height) > (self.range[1] - self.range[0]):
+                #    pbar.update()
+                #    self.points.append([x,y,0)
+                #    continue
+                #print np.fabs(max_height - min_height)
+
                 #z = min_height
-                #for _ in range(1+number_sample):
-                    #z = copy.copy(0.1+ z)
-                    #self.points.append([x,y,z])
+                #for _ in range(1+r):
+                #    z = copy.copy(0.1+ z)
+                #    self.points.append([x,y,z])
+
+                #print(max_height, min_height)
+
                 for z in np.arange(min_height, max_height, z_scaler):
                     self.points.append([x,y,z])
 
