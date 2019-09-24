@@ -3,7 +3,6 @@ import cv2
 import argparse
 import os
 from sensor_msgs.msg import PointCloud2
-import rospy
 import numpy as np
 import pptk
 import time
@@ -16,7 +15,7 @@ help_text = 'This is a script that converts RGB images to PointCloud2 messages'
 
 class ImageToPc():
     def __init__(self, extension, folder, topic=None, index = -1):
-        rospy.init_node("pointcloud_decoder")
+        #rospy.init_node("pointcloud_decoder")
         self.index = index
         self.counter = 1
         self.folder = folder
@@ -78,19 +77,13 @@ class ImageToPc():
                 #max_height = np.log(float(g)/255) - np.log(1-float(g)/255)
                 #min_height = np.log(float(b)/255) - np.log(1-float(b)/255)
 
-                max_height = ((float(img[i,j,1])-127)/255) * (self.range[1]-self.range[0])
--               min_height = ((float(img[i,j,2])-127)/255) * (self.range[1]-self.range[0])
-
+                max_height = ((float(b)-127)/255) * (self.range[1]-self.range[0])
+                min_height = ((float(g)-127)/255) * (self.range[1]-self.range[0])
 
                 x = ((i - x_offset)/self.pixels_per_meter)
                 y = ((j - y_offset)/self.pixels_per_meter)
 
-                if g == b:
-                    pbar.update()
-                    self.points.append([x,y,min_height+self.range[0]])
-                    continue
-
-                if (r < 2):
+                if (r < 4):
                     pbar.update()
                     continue
 
@@ -105,15 +98,15 @@ class ImageToPc():
                 #    continue
                 #print np.fabs(max_height - min_height)
 
-                #z = min_height
-                #for _ in range(1+r):
-                #    z = copy.copy(0.1+ z)
-                #    self.points.append([x,y,z])
+                z = min_height
+                for _ in range(1+r):
+                    z = copy.copy(z) + z_scaler
+                    self.points.append([x,y,z])
 
                 #print(max_height, min_height)
 
-                for z in np.arange(min_height, max_height, z_scaler):
-                    self.points.append([x,y,z])
+                #for z in np.arange(min_height, max_height, z_scaler):
+                #    self.points.append([x,y,z])
 
                 pbar.update()
 

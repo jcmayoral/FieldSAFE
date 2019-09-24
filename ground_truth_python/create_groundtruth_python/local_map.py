@@ -28,6 +28,7 @@ class Lidar2Image:
         self.pixels_number = int(self.meters*self.pixels_per_meter)
 
         #assume symmetric
+        #TODO FOR HIGH RANGE -> approach does not work 
         self.range= [-float(z_range),float(z_range)]
         #from RGB
         self.max_value = 255
@@ -64,7 +65,7 @@ class Lidar2Image:
 
     def scalar_to_color(self,x):
         color = self.max_value/(self.range[1]-self.range[0]) * x + self.max_value/2;
-        return int(round(color))
+        return int(np.ceil(color))
 
 
     def save_image_to_file(self,img):
@@ -101,6 +102,7 @@ class Lidar2Image:
         cvMat = np.zeros((self.pixels_number, self.pixels_number, 3), np.uint8)
         color = tuple(reversed(rgb_color))
         cvMat[:] = color
+
 
         for i in range(self.size-1, -1, -1):
             try:
@@ -148,10 +150,6 @@ class Lidar2Image:
             cvMat[cell_x,cell_y,0] +=  1
             color_val = self.scalar_to_color(z)
 
-            if color_val < 0 or color_val > 255:
-                print (color_val, "WHAT")
-
-
             cvMat[cell_x,cell_y,1] = max(cvMat[cell_x,cell_y,1],color_val)
             cvMat[cell_x,cell_y,2] = min(cvMat[cell_x,cell_y,2],color_val)
 
@@ -172,7 +170,7 @@ if __name__ == '__main__':
     parser.add_argument("--topic", "-t", default="/velodyne_points")
     parser.add_argument("--meters", "-m", default=10)
     parser.add_argument("--pix_meters", "-p", default=15)
-    parser.add_argument("--z_range", "-z", default=5)
+    parser.add_argument("--z_range", "-z", default=2.5)
 
     args = parser.parse_args()
     bag = rosbag.Bag(args.bag, mode="r")
