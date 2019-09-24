@@ -80,8 +80,8 @@ class ImageToPc():
                 max_height = ((float(b)-127)/255) * (self.range[1]-self.range[0])
                 min_height = ((float(g)-127)/255) * (self.range[1]-self.range[0])
 
-                x = ((i - x_offset)/self.pixels_per_meter)
-                y = ((j - y_offset)/self.pixels_per_meter)
+                x = ((float(i) - x_offset)/self.pixels_per_meter)
+                y = ((float(j) - y_offset)/self.pixels_per_meter)
 
                 if (r < 4):
                     pbar.update()
