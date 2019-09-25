@@ -11,23 +11,49 @@ import pyprind
 import ast
 from PIL import Image
 import random
+import rospy
+import ros_numpy
 
 help_text = 'This is a script that converts RGB images to PointCloud2 messages'
 
 
 class ImageToPc():
-    def __init__(self, extension, folder, topic=None, index = -1):
+    def __init__(self, extension, folder, topic=None, index = -1, enable_ros= 1):
         #rospy.init_node("pointcloud_decoder")
-        self.index = index
+        self.index = int(index)
         self.counter = 1
         self.folder = folder
         self.extension = extension
         self.task_done = False
+        self.enable_ros = bool(int(enable_ros))
         #100 cm per meter
-
+        if self.enable_ros:
+            rospy.init_node("pointcloud_to_image")
+            self.publisher = rospy.Publisher("pointcloud_conversion", PointCloud2)
+            rospy.sleep(1)
+            rospy.loginfo("READY")
         #self.points = list()
         #self.viewer = pptk.viewer(self.points)
         self.load_params()
+
+    def test(self):
+        print (self.points.shape)
+        print (self.points[:,0].shape)
+
+        data = np.zeros(self.points.shape[0], dtype=[
+        ('x', np.float32),
+        ('y', np.float32),
+        ('z', np.float32)])
+        #('vectors', np.float32, (3,))])
+        data['x'] = self.points[:,0]
+        data['y'] = self.points[:,1]
+        data['z'] = self.points[:,2]
+        #data['vectors'] = np.arange(100)[:,np.newaxis]
+        msg = ros_numpy.msgify(PointCloud2, data)
+        msg.header.stamp = rospy.Time.now()
+        msg.header.frame_id = "velodyne"
+        self.publisher.publish(msg)
+        #ros_numpy.point_cloud2.array_to_pointcloud2(msg)
 
     def load_params(self):
         f = open("params.txt","r")
@@ -41,7 +67,9 @@ class ImageToPc():
 
 
     def get_next_image(self):
-        if self.index == -1:
+        print ("READING IMAGE")
+        print type(self.index)
+        if self.index == 0:
             img_name = os.path.join(self.folder , str(self.counter)+self.extension) #self.transformed_image.header.stamp
         else:
             img_name = os.path.join(self.folder , str(self.index)+self.extension) #self.transformed_image.header.stamp
@@ -56,6 +84,7 @@ class ImageToPc():
 
 
             if im is None:
+                print "No image", img_name
                 self.task_done = True
             self.counter = self.counter + 1
             return im
@@ -71,6 +100,7 @@ class ImageToPc():
         print("computing %d points ", height * width)
         pbar = pyprind.ProgBar(height*width)
         self.points = list()
+        self.rgb = list()
 
         z_scaler =  np.fabs(self.range[1]-self.range[0])/255
         print(z_scaler)
@@ -81,7 +111,7 @@ class ImageToPc():
                 #r counter
                 #g mean
                 #b variance
-                r,g,b = img[i,j,:]
+                r,g,b = copy.copy(img[i,j,:])
                 #if g >60 or b > 100:
                 #    print (r,g,b)
                 #    pbar.update()
@@ -120,11 +150,13 @@ class ImageToPc():
                 #    continue
                 mean_height = ((float(b)-127)/255) * (self.range[1]-self.range[0])
                 std_height = ((float(g))/255) * (self.range[1]-self.range[0])
-                print (mean_height, std_height)
+                #print (mean_height, std_height)
+
                 #TODO calculate number of samples according something
                 for _ in range(r/2):
                     z = random.uniform(mean_height - std_height, mean_height + std_height)
                     self.points.append([x,y,z])
+                    self.rgb.append([r,g,b])
                 #self.points.append([x,y,mean_height])
                 #if b == g:
                 #    print("NO height")
@@ -138,16 +170,32 @@ class ImageToPc():
 
                 #
         print("number of points %d "% len(self.points))
+        print("number of colors %d "% len(self.rgb))
+
         #self.viewer.close()
-        self.viewer = pptk.viewer(self.points)
+        #print np.unique(rgb[:,0])
+        #print np.unique(rgb[:,1])
+        #print np.unique(rgb[:,2])
+        self.points = np.array(self.points).reshape(len(self.points),3)
+        self.rgb = np.array(self.rgb, np.float64).reshape(len(self.rgb),3)
+
+        #rgb = pptk.rand(len(self.points), 3)
+        if self.enable_ros:
+            self.test()
+        else:
+            self.rgb /= 255
+            self.viewer = pptk.viewer(self.points,self.rgb)
+            self.viewer.set(point_size=0.05)
 
         if self.index > -1:
-            raw_input("Press Enter to continue...")
+            if not self.enable_ros:
+                raw_input("Press Enter to continue...")
         else:
             time.sleep(1)
 
         if self.task_done:
-            self.viewer.close()
+            if not self.enable_ros:
+                self.viewer.close()
 
 
 if __name__ == '__main__':
@@ -155,11 +203,12 @@ if __name__ == '__main__':
     parser.add_argument("--folder", "-b", help="set input bagname", default=False)
     parser.add_argument("--extension", "-e", help="set image extension", default=".jpeg")
     parser.add_argument("--topic", "-t", default="/velodyne_points")
-    parser.add_argument("--index", "-i", default=-1)
+    parser.add_argument("--index", "-i", default=0)
+    parser.add_argument("--ros", "-r", default=0)
 
 
     args = parser.parse_args()
-    image2PC = ImageToPc(extension=args.extension, folder=args.folder, topic = args.topic, index = args.index)
+    image2PC = ImageToPc(extension=args.extension, folder=args.folder, topic = args.topic, index = args.index, enable_ros = args.ros)
 
     while True:
         current_image = image2PC.get_next_image()
@@ -167,8 +216,8 @@ if __name__ == '__main__':
             break
 
         image2PC.compute_pc(current_image)
+
         if image2PC.task_done:
             break
-
 
     print("Finished")
