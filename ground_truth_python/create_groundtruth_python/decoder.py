@@ -39,15 +39,24 @@ class ImageToPc():
     def test(self):
         print (self.points.shape)
         print (self.points[:,0].shape)
+        self.rgb = np.array(self.rgb, np.float32).reshape(len(self.rgb),3)
 
         data = np.zeros(self.points.shape[0], dtype=[
         ('x', np.float32),
         ('y', np.float32),
-        ('z', np.float32)])
+        ('z', np.float32),
+        ('r', np.float32),
+        ('g', np.float32),
+        ('b', np.float32)
+        ])
         #('vectors', np.float32, (3,))])
         data['x'] = self.points[:,0]
         data['y'] = self.points[:,1]
         data['z'] = self.points[:,2]
+        data['r'] = self.rgb[:,0]
+        data['g'] = self.rgb[:,1]
+        data['b'] = self.rgb[:,2]
+
         #data['vectors'] = np.arange(100)[:,np.newaxis]
         msg = ros_numpy.msgify(PointCloud2, data)
         msg.header.stamp = rospy.Time.now()
@@ -153,7 +162,8 @@ class ImageToPc():
                 #print (mean_height, std_height)
 
                 #TODO calculate number of samples according something
-                for _ in range(r/2):
+                #TODO USE r value
+                for _ in range(3):
                     z = random.uniform(mean_height - std_height, mean_height + std_height)
                     self.points.append([x,y,z])
                     self.rgb.append([r,g,b])
@@ -177,12 +187,12 @@ class ImageToPc():
         #print np.unique(rgb[:,1])
         #print np.unique(rgb[:,2])
         self.points = np.array(self.points).reshape(len(self.points),3)
-        self.rgb = np.array(self.rgb, np.float64).reshape(len(self.rgb),3)
 
         #rgb = pptk.rand(len(self.points), 3)
         if self.enable_ros:
             self.test()
         else:
+            self.rgb = np.array(self.rgb, np.float64).reshape(len(self.rgb),3)
             self.rgb /= 255
             self.viewer = pptk.viewer(self.points,self.rgb)
             self.viewer.set(point_size=0.05)
