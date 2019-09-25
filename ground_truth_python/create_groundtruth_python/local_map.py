@@ -11,6 +11,8 @@ import numpy as np
 import rosbag
 import argparse
 import os
+from PIL import Image
+
 
 help_text = 'This is a script that converts PointCloud2 message to RGB images'
 
@@ -28,7 +30,7 @@ class Lidar2Image:
         self.pixels_number = int(self.meters*self.pixels_per_meter)
 
         #assume symmetric
-        #TODO FOR HIGH RANGE -> approach does not work 
+        #TODO FOR HIGH RANGE -> approach does not work
         self.range= [-float(z_range),float(z_range)]
         #from RGB
         self.max_value = 255
@@ -70,8 +72,28 @@ class Lidar2Image:
 
     def save_image_to_file(self,img):
         name = os.path.join(self.filegroup , str(self.counter)+'.jpeg') #self.transformed_image.header.stamp
+        #file_name = os.path.join(self.filegroup , str(self.counter)+'.npy') #self.transformed_image.header.stamp
+
         #cv2_img.dtype='uint8'
-        cv2.imwrite(name, img)
+        #rgbimg = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_HSV2RGB)
+        #params = list()
+        #params.append(cv2.IMWRITE_PNG_COMPRESSION)
+        #params.append(8)
+        #print(img[0,0])
+        #im = Image.fromarray(img)
+        cv2.imwrite(name,img)
+
+        #im.save(name, "PNG")
+        #save to array
+        #np.savez_compressed(name, img)
+        #im = Image.open(name)
+        #recovered_im = np.asarray(im)
+
+
+        #recovered_im = cv2.imread(name, cv2.IMREAD_COLOR)
+        #print recovered_im[0,0]
+
+
         self.counter += 1
 
     def ros_to_cv(self):
@@ -98,10 +120,11 @@ class Lidar2Image:
         #cvMat = cv2.CreateImage(self.pixels_number, self.pixels_number, cv.CV_32FC3)
         #cvMat = cv2.Mat(2,2, CV_8UC3, Scalar(0,0,255));
 
-        rgb_color=(255, 0, 0)
+        rgb_color=(0, 0, 255)
         cvMat = np.zeros((self.pixels_number, self.pixels_number, 3), np.uint8)
-        color = tuple(reversed(rgb_color))
+        color = tuple(rgb_color)
         cvMat[:] = color
+        #cv.CvtColor(vis0, vis2, cv.CV_GRAY2BGR)
 
 
         for i in range(self.size-1, -1, -1):
@@ -141,7 +164,7 @@ class Lidar2Image:
 
             #make all z positive
             feature = (z -  self.range[0])
-            featured_sigmoid = int(255*(1. / (1. + np.exp(-feature))))
+            featured_sigmoid = 255.0*(1. / (1. + np.exp(-feature)))
 
             feature_logit = np.log(featured_sigmoid/255) - np.log(1-featured_sigmoid/255)
             #update = min(fabs(feature), self.max_value)
@@ -149,17 +172,16 @@ class Lidar2Image:
             #number of values
             cvMat[cell_x,cell_y,0] +=  1
             color_val = self.scalar_to_color(z)
-
-            cvMat[cell_x,cell_y,1] = max(cvMat[cell_x,cell_y,1],color_val)
-            cvMat[cell_x,cell_y,2] = min(cvMat[cell_x,cell_y,2],color_val)
+            print(color_val)
+            #cvMat[cell_x,cell_y,1] = max(cvMat[cell_x,cell_y,1],color_val)
+            #cvMat[cell_x,cell_y,2] = min(cvMat[cell_x,cell_y,2],color_val)
 
             #TODO NOT WORKING BUT GREAT IDEA
-            #cvMat[cell_x,cell_y,1] =  max(cvMat[cell_x,cell_y,1], featured_sigmoid)
-            #cvMat[cell_x,cell_y,2] =  min(cvMat[cell_x,cell_y,2], featured_sigmoid)
+            cvMat[cell_x,cell_y,1] =  max(cvMat[cell_x,cell_y,1], color_val)
+            cvMat[cell_x,cell_y,2] =  min(cvMat[cell_x,cell_y,2], color_val)
 
         #TODO Normalize R channel
         #max_overlapping = np.max(cvMat[:,:,0])
-
         if self.save_image:
             self.save_image_to_file(cvMat)
 
@@ -171,6 +193,7 @@ if __name__ == '__main__':
     parser.add_argument("--meters", "-m", default=10)
     parser.add_argument("--pix_meters", "-p", default=15)
     parser.add_argument("--z_range", "-z", default=2.5)
+    parser.add_argument("--debug", "-d", default=False)
 
     args = parser.parse_args()
     bag = rosbag.Bag(args.bag, mode="r")
@@ -179,3 +202,5 @@ if __name__ == '__main__':
 
     for topic, msg, t in bag.read_messages(topics=args.topic):
         lidar2image.topic_cb(msg)
+        if args.debug:
+            break

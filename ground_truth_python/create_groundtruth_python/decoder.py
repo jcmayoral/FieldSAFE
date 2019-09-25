@@ -9,6 +9,7 @@ import time
 import copy
 import pyprind
 import ast
+from PIL import Image
 
 help_text = 'This is a script that converts RGB images to PointCloud2 messages'
 
@@ -39,14 +40,19 @@ class ImageToPc():
 
 
     def get_next_image(self):
+        if self.index == -1:
+            img_name = os.path.join(self.folder , str(self.counter)+self.extension) #self.transformed_image.header.stamp
+        else:
+            img_name = os.path.join(self.folder , str(self.index)+self.extension) #self.transformed_image.header.stamp
+            self.task_done = True
+
         try:
-            if self.index == -1:
-                img_name = os.path.join(self.folder , str(self.counter)+self.extension) #self.transformed_image.header.stamp
-                im = cv2.imread(img_name, cv2.IMREAD_COLOR)
-            else:
-                img_name = os.path.join(self.folder , str(self.index)+self.extension) #self.transformed_image.header.stamp
-                im = cv2.imread(img_name, cv2.IMREAD_COLOR)
-                self.task_done = True
+            #im_raw = Image.open(img_name)
+            #im = np.asarray(im_raw)
+            im = cv2.imread(img_name, cv2.IMREAD_COLOR)
+            #im = cv2.imread(img_name)
+            #im = cv2.cvtColor(im, cv2.COLOR_RGB2HSV).astype(np.float64)
+
 
             if im is None:
                 self.task_done = True
@@ -65,7 +71,7 @@ class ImageToPc():
         pbar = pyprind.ProgBar(height*width)
         self.points = list()
 
-        z_scaler = np.fabs(self.range[1]-self.range[0])/255
+        z_scaler =  np.fabs(self.range[1]-self.range[0])/255
         print(z_scaler)
 
 
@@ -73,7 +79,15 @@ class ImageToPc():
             for j in range(width):
                 r,g,b = img[i,j,:]
 
+                #if g >60 or b > 100:
+                #    print (r,g,b)
+                #    pbar.update()
+                #    continue
+                #print (r,g,b)
                 #NOT WORKING TODO
+                #if g == 0 or b == 0:
+                #    pbar.update()
+                #    continue
                 #max_height = np.log(float(g)/255) - np.log(1-float(g)/255)
                 #min_height = np.log(float(b)/255) - np.log(1-float(b)/255)
 
@@ -83,7 +97,7 @@ class ImageToPc():
                 x = ((float(i) - x_offset)/self.pixels_per_meter)
                 y = ((float(j) - y_offset)/self.pixels_per_meter)
 
-                if (r < 4):
+                if (r == 0):
                     pbar.update()
                     continue
 
@@ -95,18 +109,23 @@ class ImageToPc():
                 #if np.fabs(max_height - min_height) > (self.range[1] - self.range[0]):
                 #    pbar.update()
                 #    self.points.append([x,y,0)
-                #    continue
+                ##continue
                 #print np.fabs(max_height - min_height)
-
+                #print(r)
                 z = min_height
-                for _ in range(1+r):
+                for _ in range(r):
                     z = copy.copy(z) + z_scaler
+                    if z > max_height:
+                        continue
                     self.points.append([x,y,z])
 
-                #print(max_height, min_height)
+                if b == g:
+                    print("NO height")
+                    pbar.update()
+                    continue
 
-                #for z in np.arange(min_height, max_height, z_scaler):
-                #    self.points.append([x,y,z])
+                #for w in np.arange(min_height, max_height, z_scaler):
+                #    self.points.append([x,y,w])
 
                 pbar.update()
 
