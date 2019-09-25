@@ -131,7 +131,7 @@ class Lidar2Image:
                     #Default 0
                     output[i,j] = 0
                     count = count + 1
-        print np.unique(output), "IGNORING MEAN", count
+        #print np.unique(output), "IGNORING MEAN", count
         return output
 
     def calculate_variance(self,list_val, mean):
@@ -144,7 +144,7 @@ class Lidar2Image:
                     if len(list_val[i][j][1:]) < 1:
                             continue
                     if len(list_val[i][j][1:]) == 1:
-                        print "N", list_val[i][j][1:][0], mean[i,j]
+                        ##print "N", list_val[i][j][1:][0], mean[i,j]
                         output[i,j] = 0# int(np.sqrt(list_val[i][j][1:]))
                         continue
 
@@ -157,7 +157,7 @@ class Lidar2Image:
                     print "#"
                     output[i,j] = 0
                     count = count + 1
-        print np.unique(output), "IGNORING ON VARIANCE", count
+        #print np.unique(output), "IGNORING ON VARIANCE", count
         return output
 
     def count_elements(self,list_val):
@@ -166,15 +166,15 @@ class Lidar2Image:
             for j in range(self.pixels_number):
                 try:
 
-                    if  len(list_val[i][j][1:])>0:
-                        print i,j, len(list_val[i][j])
+                    #if  len(list_val[i][j][1:])>0:
+                    #    print i,j, len(list_val[i][j])
                     #IGNORE 0
                     output[i,j] = len(list_val[i][j][1:])
                 except:
                     #Default 0
                     print "Error in count"
                     pass
-        print np.unique(output), "COUNT"
+        #print np.unique(output), "COUNT"
         return output
 
 
@@ -256,7 +256,7 @@ class Lidar2Image:
         cvMat[:,:,1] = self.calculate_mean(copy.copy(accumulator))
         cvMat[:,:,2] = self.calculate_variance(copy.copy(accumulator),copy.copy(cvMat[:,:,1]))
 
-        print np.unique(cvMat)
+        #print np.unique(cvMat)
         #cvMat[:,:,1] = np.variance(accumulator)
 
         #TODO Normalize R channel
@@ -273,14 +273,16 @@ if __name__ == '__main__':
     parser.add_argument("--meters", "-m", default=10)
     parser.add_argument("--pix_meters", "-p", default=15)
     parser.add_argument("--z_range", "-z", default=2.5)
-    parser.add_argument("--debug", "-d", default=False)
+    parser.add_argument("--debug", "-d", default=1)
 
     args = parser.parse_args()
+    debug_mode = bool(int(args.debug))
     bag = rosbag.Bag(args.bag, mode="r")
     lidar2image = Lidar2Image(save_image=True, filegroup=args.group, meters = args.meters, pix_per_meter=args.pix_meters, z_range=args.z_range)
     lidar2image.save_params()
 
     for topic, msg, t in bag.read_messages(topics=args.topic):
         lidar2image.topic_cb(msg)
-        if args.debug:
+        if debug_mode:
             break
+    bag.close()
