@@ -12,7 +12,8 @@ import rosbag
 import argparse
 import os
 from PIL import Image
-
+import warnings
+import copy
 
 help_text = 'This is a script that converts PointCloud2 message to RGB images'
 
@@ -116,11 +117,81 @@ class Lidar2Image:
         gen = pc2.read_points(msg, skip_nans=True, field_names=("x", "y", "z"))
         self.process_pc(gen)
 
+    def calculate_mean(self,list_val):
+        #warnings.filterwarnings('error')
+        count = 0
+        output = np.zeros((self.pixels_number, self.pixels_number   ), np.uint32)
+        for i in range(self.pixels_number):
+            for j in range(self.pixels_number):
+                try:
+                    if len(list_val[i][j][1:]) < 1:
+                        continue
+                    output[i,j] =np.mean(list_val[i][j][1:])
+                except Warning:
+                    #Default 0
+                    output[i,j] = 0
+                    count = count + 1
+        print np.unique(output), "IGNORING MEAN", count
+        return output
+
+    def calculate_variance(self,list_val, mean):
+        #warnings.filterwarnings('error')
+        count = 0
+        output = np.zeros((self.pixels_number, self.pixels_number   ), np.uint32)
+        for i in range(self.pixels_number):
+            for j in range(self.pixels_number):
+                try:
+                    if len(list_val[i][j][1:]) < 1:
+                            continue
+                    if len(list_val[i][j][1:]) == 1:
+                        print "N", list_val[i][j][1:][0], mean[i,j]
+                        output[i,j] = 0# int(np.sqrt(list_val[i][j][1:]))
+                        continue
+
+                    for d in list_val[i][j][1:]:
+                        output[i,j] += np.power(d - mean[i,j],2)
+                    output[i,j] = int(np.sqrt(output[i,j]/(len(list_val[i][j][1:])-1)))
+
+                except Warning:
+                    #Default 0
+                    print "#"
+                    output[i,j] = 0
+                    count = count + 1
+        print np.unique(output), "IGNORING ON VARIANCE", count
+        return output
+
+    def count_elements(self,list_val):
+        output = np.zeros((self.pixels_number, self.pixels_number   ), np.uint16)
+        for i in range(self.pixels_number):
+            for j in range(self.pixels_number):
+                try:
+
+                    if  len(list_val[i][j][1:])>0:
+                        print i,j, len(list_val[i][j])
+                    #IGNORE 0
+                    output[i,j] = len(list_val[i][j][1:])
+                except:
+                    #Default 0
+                    print "Error in count"
+                    pass
+        print np.unique(output), "COUNT"
+        return output
+
+
     def process_pc(self, pc):
         #cvMat = cv2.CreateImage(self.pixels_number, self.pixels_number, cv.CV_32FC3)
         #cvMat = cv2.Mat(2,2, CV_8UC3, Scalar(0,0,255));
 
-        rgb_color=(0, 0, 255)
+        rgb_color=(0, 0, 0)
+        #accumulator = np.zeros((self.pixels_number, self.pixels_number), np.float32)
+        accumulator = [[list() for x in range(self.pixels_number)] for y in range(self.pixels_number)]
+        #accumulator = np.asarray(accumulator)
+        for i in range(self.pixels_number):
+            for j in range(self.pixels_number):
+                accumulator[i][j].append(0)
+        #    print (i,j), accumulator[i][j]
+
+
         cvMat = np.zeros((self.pixels_number, self.pixels_number, 3), np.uint8)
         color = tuple(rgb_color)
         cvMat[:] = color
@@ -170,20 +241,29 @@ class Lidar2Image:
             #update = min(fabs(feature), self.max_value)
             #print(z - (feature_logit + self.range[0]))
             #number of values
-            cvMat[cell_x,cell_y,0] +=  1
             color_val = self.scalar_to_color(z)
-            print(color_val)
+            #cvMat[cell_x,cell_y,0] +=  1
+            accumulator[cell_x][cell_y].append(copy.copy(color_val))
             #cvMat[cell_x,cell_y,1] = max(cvMat[cell_x,cell_y,1],color_val)
             #cvMat[cell_x,cell_y,2] = min(cvMat[cell_x,cell_y,2],color_val)
 
             #TODO NOT WORKING BUT GREAT IDEA
-            cvMat[cell_x,cell_y,1] =  max(cvMat[cell_x,cell_y,1], color_val)
-            cvMat[cell_x,cell_y,2] =  min(cvMat[cell_x,cell_y,2], color_val)
+            #cvMat[cell_x,cell_y,1] =  max(cvMat[cell_x,cell_y,1], color_val)
+            #cvMat[cell_x,cell_y,2] =  min(cvMat[cell_x,cell_y,2], color_val)
+
+        #cvMat[:,:,0] = accumulator / cvMat[:,:,0]
+        cvMat[:,:,0] = self.count_elements(copy.copy(accumulator))
+        cvMat[:,:,1] = self.calculate_mean(copy.copy(accumulator))
+        cvMat[:,:,2] = self.calculate_variance(copy.copy(accumulator),copy.copy(cvMat[:,:,1]))
+
+        print np.unique(cvMat)
+        #cvMat[:,:,1] = np.variance(accumulator)
 
         #TODO Normalize R channel
         #max_overlapping = np.max(cvMat[:,:,0])
         if self.save_image:
             self.save_image_to_file(cvMat)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = help_text)

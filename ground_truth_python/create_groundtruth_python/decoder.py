@@ -10,6 +10,7 @@ import copy
 import pyprind
 import ast
 from PIL import Image
+import random
 
 help_text = 'This is a script that converts RGB images to PointCloud2 messages'
 
@@ -77,8 +78,10 @@ class ImageToPc():
 
         for i in range(height):
             for j in range(width):
+                #r counter
+                #g mean
+                #b variance
                 r,g,b = img[i,j,:]
-
                 #if g >60 or b > 100:
                 #    print (r,g,b)
                 #    pbar.update()
@@ -91,8 +94,8 @@ class ImageToPc():
                 #max_height = np.log(float(g)/255) - np.log(1-float(g)/255)
                 #min_height = np.log(float(b)/255) - np.log(1-float(b)/255)
 
-                max_height = ((float(b)-127)/255) * (self.range[1]-self.range[0])
-                min_height = ((float(g)-127)/255) * (self.range[1]-self.range[0])
+
+                #variance_height -= mean_height
 
                 x = ((float(i) - x_offset)/self.pixels_per_meter)
                 y = ((float(j) - y_offset)/self.pixels_per_meter)
@@ -110,19 +113,23 @@ class ImageToPc():
                 #    pbar.update()
                 #    self.points.append([x,y,0)
                 ##continue
-                #print np.fabs(max_height - min_height)
-                #print(r)
-                z = min_height
-                for _ in range(r):
-                    z = copy.copy(z) + z_scaler
-                    if z > max_height:
-                        continue
-                    self.points.append([x,y,z])
 
-                if b == g:
-                    print("NO height")
-                    pbar.update()
-                    continue
+                #if g == 0 and b == 0:
+                #    print(mean_height, std_height, "A")
+                #    pbar.update()
+                #    continue
+                mean_height = ((float(b)-127)/255) * (self.range[1]-self.range[0])
+                std_height = ((float(g))/255) * (self.range[1]-self.range[0])
+                print (mean_height, std_height)
+                #TODO calculate number of samples according something
+                for _ in range(r/2):
+                    z = random.uniform(mean_height - std_height, mean_height + std_height)
+                    self.points.append([x,y,z])
+                #self.points.append([x,y,mean_height])
+                #if b == g:
+                #    print("NO height")
+                #    pbar.update()
+                #    continue
 
                 #for w in np.arange(min_height, max_height, z_scaler):
                 #    self.points.append([x,y,w])
